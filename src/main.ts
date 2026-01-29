@@ -151,7 +151,6 @@ class GameScene extends Phaser.Scene {
   hitEnemy(player: any, enemy: any) {
     // Si el jugador está cayendo sobre el enemigo (más margen de detección)
     const playerBottom = player.y + (player.height / 2)
-    const enemyTop = enemy.y - (enemy.height / 2)
 
     // El jugador mata al enemigo si está cayendo y su parte inferior está por encima del centro del enemigo
     if (player.body.velocity.y > 0 && playerBottom < enemy.y + 5) {
@@ -185,7 +184,7 @@ class GameScene extends Phaser.Scene {
   gameOver() {
     this.physics.pause()
 
-    const gameOverText = this.add.text(400, 250, 'GAME OVER', {
+    this.add.text(400, 250, 'GAME OVER', {
       fontSize: '64px',
       color: '#ff0000',
       fontStyle: 'bold',
@@ -193,7 +192,7 @@ class GameScene extends Phaser.Scene {
       strokeThickness: 8
     }).setOrigin(0.5)
 
-    const finalScore = this.add.text(400, 320, `Puntuación Final: ${this.score}`, {
+    this.add.text(400, 320, `Puntuación Final: ${this.score}`, {
       fontSize: '32px',
       color: COLORS.text,
       fontStyle: 'bold',
@@ -201,7 +200,7 @@ class GameScene extends Phaser.Scene {
       strokeThickness: 6
     }).setOrigin(0.5)
 
-    const restartText = this.add.text(400, 370, 'Presiona ESPACIO para reiniciar', {
+    this.add.text(400, 370, 'Presiona ESPACIO para reiniciar', {
       fontSize: '20px',
       color: COLORS.text,
       stroke: '#000000',
@@ -250,7 +249,6 @@ class GameScene extends Phaser.Scene {
 
         for (const platform of this.dynamicPlatforms) {
           if (enemy.body.touching.down) {
-            const platformBody = platform.body as Phaser.Physics.Arcade.Body
             const enemyBottom = enemy.y + enemy.height / 2
             const platformTop = platform.y - platform.height / 2
 
