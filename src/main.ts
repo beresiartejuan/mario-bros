@@ -584,11 +584,12 @@ class GameScene extends Phaser.Scene {
   }
 
   private updateMovingPlatforms(delta: number) {
+    const deltaSeconds = delta / 1000
     this.movingPlatforms.forEach(platform => {
       if (platform.active) {
         // Mover plataforma
-        platform.x += platform.speed * platform.direction * (delta / 1000)
-        (platform.body as any).updateFromGameObject()
+        platform.x += platform.speed * platform.direction * deltaSeconds
+        ;(platform.body as any).updateFromGameObject()
         
         // Cambiar dirección al llegar a los límites
         if (platform.x >= platform.endX) {
