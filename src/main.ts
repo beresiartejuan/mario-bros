@@ -502,24 +502,30 @@ class GameScene extends Phaser.Scene {
 
 	private cleanupPools() {
 		// Destruir enemigos existentes
-		this.enemyPool.forEach((enemy) => {
-			if (enemy) enemy.destroy()
-		})
-		this.enemyPool = []
+		if (this.enemyPool) {
+			this.enemyPool.forEach((enemy) => {
+				if (enemy) enemy.destroy()
+			})
+			this.enemyPool = []
+		}
 		this.enemyTypes.clear()
 		this.enemyPatrolData.clear()
 
 		// Destruir monedas existentes
-		this.coinPool.forEach((coin) => {
-			if (coin) coin.destroy()
-		})
-		this.coinPool = []
+		if (this.coinPool) {
+			this.coinPool.forEach((coin) => {
+				if (coin) coin.destroy()
+			})
+			this.coinPool = []
+		}
 
 		// Destruir power-ups existentes
-		this.powerUpPool.forEach((powerUp) => {
-			if (powerUp) powerUp.destroy()
-		})
-		this.powerUpPool = []
+		if (this.powerUpPool) {
+			this.powerUpPool.forEach((powerUp) => {
+				if (powerUp) powerUp.destroy()
+			})
+			this.powerUpPool = []
+		}
 
 		// Limpiar plataformas
 		this.movingPlatforms = []
@@ -528,6 +534,20 @@ class GameScene extends Phaser.Scene {
 		// Resetear power-up
 		this.activePowerUp = null
 		this.isInvincible = false
+
+		// Limpiar grupos de Phaser si existen
+		if (this.platforms) {
+			this.platforms.clear(true, true)
+		}
+		if (this.enemies) {
+			this.enemies.clear(true, true)
+		}
+		if (this.coins) {
+			this.coins.clear(true, true)
+		}
+		if (this.powerUps) {
+			this.powerUps.clear(true, true)
+		}
 	}
 
 	private resetGameState() {
@@ -548,25 +568,7 @@ class GameScene extends Phaser.Scene {
 			this.powerUpTimer = null
 		}
 
-		// Limpiar plataformas si existen
-		if (this.platforms) {
-			this.platforms.clear(true, true)
-		}
-
-		// Limpiar enemigos si existen
-		if (this.enemies) {
-			this.enemies.clear(true, true)
-		}
-
-		// Limpiar monedas si existen
-		if (this.coins) {
-			this.coins.clear(true, true)
-		}
-
-		// Limpiar power-ups si existen
-		if (this.powerUps) {
-			this.powerUps.clear(true, true)
-		}
+		// NOTA: La limpieza de grupos se hace en cleanupPools() después de inicializar
 	}
 
 	private createGradientBackground() {
