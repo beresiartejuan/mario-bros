@@ -137,26 +137,6 @@ mario-bros/
 
 ---
 
-<div align="center">
-
-**⭐ Si te gustó el proyecto, ¡dale una estrella! ⭐**
-
-*Desarrollado con ❤️ y mucha ☕*
-
-</div>
-
----
-
-<div align="center">
-
-**¡Gracias por jugar!** 🎮
-
-*Proyecto completado y listo para disfrutar* ✨
-
-</div>
-
----
-
 ## 📜 Licencia
 
 Este proyecto está bajo la Licencia MIT. ¡Siéntete libre de usarlo y modificarlo!
