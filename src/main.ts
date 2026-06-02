@@ -589,7 +589,6 @@ class GameScene extends Phaser.Scene {
       if (platform.active) {
         // Mover plataforma
         platform.x += platform.speed * platform.direction * deltaSeconds
-        ;(platform.body as any).updateFromGameObject()
         
         // Cambiar dirección al llegar a los límites
         if (platform.x >= platform.endX) {
@@ -598,8 +597,8 @@ class GameScene extends Phaser.Scene {
           platform.direction = 1
         }
         
-        // Actualizar física
-        platform.body.setPosition(platform.x, platform.y)
+        // Actualizar el body de física para que coincida con la nueva posición
+        ;(platform.body as any).updateFromGameObject()
       }
     })
   }
