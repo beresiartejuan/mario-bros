@@ -856,7 +856,7 @@ class GameScene extends Phaser.Scene {
 
     // Generar nuevas plataformas
     this.platformTimer += delta
-    if (this.platformTimer > 5000 && this.dynamicPlatforms.length < 6) {
+    if (this.platformTimer > 5000 && this.dynamicPlatforms.length < 5) {
       this.platformTimer = 0
       this.spawnNewPlatform()
     }
@@ -1242,7 +1242,7 @@ class GameScene extends Phaser.Scene {
     let x = 0
     let y = 0
 
-    while (!validPosition && attempts < 10) {
+    while (!validPosition && attempts < 20) {
       x = Phaser.Math.Between(100, 700)
       const nearGround = Math.random() < 0.5
       y = nearGround ? Phaser.Math.Between(420, 500) : Phaser.Math.Between(150, 380)
@@ -1250,7 +1250,7 @@ class GameScene extends Phaser.Scene {
       validPosition = true
       for (const platform of this.dynamicPlatforms) {
         const distance = Phaser.Math.Distance.Between(x, y, platform.x, platform.y)
-        if (distance < 120) {
+        if (distance < 180) {
           validPosition = false
           break
         }
