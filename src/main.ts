@@ -514,11 +514,6 @@ class GameScene extends Phaser.Scene {
       breakablePlatform.isBreaking = false
       breakablePlatform.health = 1
       this.breakablePlatforms.push(breakablePlatform)
-      
-      // Hacer la plataforma sensible al contacto
-      this.physics.add.overlap(this.player, platform, () => {
-        this.handleBreakablePlatform(breakablePlatform)
-      })
     }
 
     this.time.delayedCall(lifetime, () => {
