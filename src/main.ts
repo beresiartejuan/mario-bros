@@ -6,7 +6,11 @@ const COLORS = {
   bg: 0x87CEEB,       // Azul cielo
   player: 0xFF0000,   // Rojo para el jugador
   platform: 0x8B4513, // Marrón para plataformas
+  platformMoving: 0xA0522D, // Marrón más oscuro para plataformas móviles
+  platformBreakable: 0x696969, // Gris para plataformas quebradizas
   enemy: 0x800080,    // Púrpura para enemigos
+  enemyPatrol: 0xFF4500, // Naranja rojizo para enemigos patrulla
+  enemyFlying: 0x00CED1, // Cyan oscuro para enemigos voladores
   ground: 0x228B22,   // Verde para el suelo
   text: '#ffffff',
   coin: 0xFFD700,     // Oro para monedas
@@ -53,6 +57,34 @@ interface PoolablePowerUp extends Phaser.GameObjects.Rectangle {
   spawnTime: number
 }
 
+// Tipos de enemigos
+enum EnemyType {
+  CHASER = 'chaser',    // Persigue al jugador
+  PATROL = 'patrol',    // Patrulla una área
+  FLYING = 'flying'     // Vuela hacia el jugador
+}
+
+// Tipos de plataformas
+enum PlatformType {
+  STATIC = 'static',      // Plataforma estática normal
+  MOVING = 'moving',      // Plataforma móvil horizontal
+  BREAKABLE = 'breakable' // Plataforma que se rompe al pisar
+}
+
+interface MovingPlatform extends PoolablePlatform {
+  isMoving: boolean
+  startX: number
+  endX: number
+  speed: number
+  direction: number
+}
+
+interface BreakablePlatform extends PoolablePlatform {
+  isBreakable: boolean
+  isBreaking: boolean
+  health: number
+}
+
 class GameScene extends Phaser.Scene {
   private player!: Phaser.Types.Physics.Arcade.ImageWithDynamicBody
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
@@ -61,9 +93,13 @@ class GameScene extends Phaser.Scene {
   private platformLifetimes!: Map<PoolablePlatform, { createdAt: number, lifetime: number }>
   private enemies!: Phaser.Physics.Arcade.Group
   private enemyPool: PoolableEnemy[] = []
+  private enemyTypes: Map<PoolableEnemy, EnemyType> = new Map()
+  private enemyPatrolData: Map<PoolableEnemy, { startX: number, endX: number, direction: number }> = new Map()
   private lives: number = 3
   private score: number = 0
   private survivalTime: number = 0
+  private movingPlatforms: MovingPlatform[] = []
+  private breakablePlatforms: BreakablePlatform[] = []
   private livesText!: Phaser.GameObjects.Text
   private scoreText!: Phaser.GameObjects.Text
   private timeText!: Phaser.GameObjects.Text
@@ -112,10 +148,10 @@ class GameScene extends Phaser.Scene {
     this.platformLifetimes = new Map()
 
     // Crear plataformas iniciales
-    this.createPlatform(200, 450, 150, 20)
-    this.createPlatform(500, 350, 150, 20)
-    this.createPlatform(150, 250, 120, 20)
-    this.createPlatform(600, 200, 130, 20)
+    this.createPlatform(200, 450, 150, 20, PlatformType.STATIC)
+    this.createPlatform(500, 350, 150, 20, PlatformType.STATIC)
+    this.createPlatform(150, 250, 120, 20, PlatformType.MOVING)
+    this.createPlatform(600, 200, 130, 20, PlatformType.BREAKABLE)
 
     // Crear jugador
     this.player = this.add.rectangle(100, 500, 30, 40, COLORS.player) as any
@@ -127,9 +163,10 @@ class GameScene extends Phaser.Scene {
     this.enemies = this.physics.add.group()
     this.initializeEnemyPool(8)
     
-    // Spawn enemigos iniciales
-    this.spawnEnemy(700, 500)
-    this.spawnEnemy(400, 300)
+    // Spawn enemigos iniciales con variedad
+    this.spawnEnemy(700, 500, EnemyType.CHASER)
+    this.spawnEnemy(400, 300, EnemyType.PATROL)
+    this.spawnEnemy(600, 100, EnemyType.FLYING)
 
     // Crear pool de monedas
     this.coins = this.physics.add.group()
@@ -250,7 +287,7 @@ class GameScene extends Phaser.Scene {
     }
   }
 
-  private spawnEnemy(x: number, y: number): PoolableEnemy | null {
+  private spawnEnemy(x: number, y: number, type: EnemyType = EnemyType.CHASER): PoolableEnemy | null {
     // Buscar enemigo inactivo en el pool
     const enemy = this.enemyPool.find(e => !e.isActive)
     if (enemy) {
@@ -261,6 +298,32 @@ class GameScene extends Phaser.Scene {
       enemy.aiUpdateTimer = 0
       enemy.setActive(true)
       enemy.setVisible(true)
+      
+      // Configurar tipo de enemigo
+      this.enemyTypes.set(enemy, type)
+      
+      // Configurar color según tipo
+      switch (type) {
+        case EnemyType.PATROL:
+          enemy.setFillStyle(COLORS.enemyPatrol)
+          // Configurar patrulla
+          const patrolRange = 150
+          this.enemyPatrolData.set(enemy, {
+            startX: Math.max(50, x - patrolRange),
+            endX: Math.min(750, x + patrolRange),
+            direction: 1
+          })
+          break
+        case EnemyType.FLYING:
+          enemy.setFillStyle(COLORS.enemyFlying)
+          // Los enemigos voladores no tienen gravedad
+          enemy.body.setAllowGravity(false)
+          break
+        default:
+          enemy.setFillStyle(COLORS.enemy)
+          enemy.body.setAllowGravity(true)
+      }
+      
       return enemy
     }
     return null
@@ -270,7 +333,10 @@ class GameScene extends Phaser.Scene {
     const activeEnemies = this.enemyPool.filter(e => e.isActive).length
     if (activeEnemies < 4) {
       const spawnX = Math.random() < 0.5 ? 50 : 750
-      this.spawnEnemy(spawnX, 100)
+      // Elegir tipo aleatorio
+      const types = [EnemyType.CHASER, EnemyType.PATROL, EnemyType.FLYING]
+      const type = types[Math.floor(Math.random() * types.length)]
+      this.spawnEnemy(spawnX, 100, type)
     }
   }
 
@@ -281,10 +347,19 @@ class GameScene extends Phaser.Scene {
     enemy.setVisible(false)
     enemy.setPosition(-100, -100)
     enemy.body.setVelocity(0, 0)
+    enemy.body.setAllowGravity(true)
+    
+    // Limpiar datos del enemigo
+    this.enemyTypes.delete(enemy)
+    this.enemyPatrolData.delete(enemy)
   }
 
-  createPlatform(x: number, y: number, width: number, height: number) {
-    const platform = this.add.rectangle(x, y, width, height, COLORS.platform) as PoolablePlatform
+  createPlatform(x: number, y: number, width: number, height: number, type: PlatformType = PlatformType.STATIC) {
+    let color = COLORS.platform
+    if (type === PlatformType.MOVING) color = COLORS.platformMoving
+    if (type === PlatformType.BREAKABLE) color = COLORS.platformBreakable
+    
+    const platform = this.add.rectangle(x, y, width, height, color) as PoolablePlatform
     this.physics.add.existing(platform, true)
     this.platforms.add(platform)
     this.dynamicPlatforms.push(platform)
@@ -297,27 +372,107 @@ class GameScene extends Phaser.Scene {
       lifetime: lifetime
     })
 
+    // Configurar comportamiento especial según tipo
+    if (type === PlatformType.MOVING) {
+      const movingPlatform = platform as MovingPlatform
+      movingPlatform.isMoving = true
+      movingPlatform.startX = x - 100
+      movingPlatform.endX = x + 100
+      movingPlatform.speed = 80
+      movingPlatform.direction = 1
+      this.movingPlatforms.push(movingPlatform)
+    } else if (type === PlatformType.BREAKABLE) {
+      const breakablePlatform = platform as BreakablePlatform
+      breakablePlatform.isBreakable = true
+      breakablePlatform.isBreaking = false
+      breakablePlatform.health = 1
+      this.breakablePlatforms.push(breakablePlatform)
+      
+      // Hacer la plataforma sensible al contacto
+      this.physics.add.overlap(this.player, platform, () => {
+        this.handleBreakablePlatform(breakablePlatform)
+      })
+    }
+
     this.time.delayedCall(lifetime, () => {
       this.tweens.add({
         targets: platform,
         alpha: 0,
         duration: 500,
         onComplete: () => {
-          platform.destroy()
-          const index = this.dynamicPlatforms.indexOf(platform)
-          if (index > -1) {
-            this.dynamicPlatforms.splice(index, 1)
-          }
-          this.platformLifetimes.delete(platform)
-          
-          // Limpiar referencias de enemigos a esta plataforma
-          this.enemyPool.forEach(enemy => {
-            if (enemy.currentPlatform === platform) {
-              enemy.currentPlatform = null
-            }
-          })
+          this.removePlatform(platform)
         }
       })
+    })
+  }
+
+  private removePlatform(platform: PoolablePlatform) {
+    platform.destroy()
+    const index = this.dynamicPlatforms.indexOf(platform)
+    if (index > -1) {
+      this.dynamicPlatforms.splice(index, 1)
+    }
+    
+    // Remover de arrays específicos
+    const movingIndex = this.movingPlatforms.indexOf(platform as MovingPlatform)
+    if (movingIndex > -1) {
+      this.movingPlatforms.splice(movingIndex, 1)
+    }
+    
+    const breakableIndex = this.breakablePlatforms.indexOf(platform as BreakablePlatform)
+    if (breakableIndex > -1) {
+      this.breakablePlatforms.splice(breakableIndex, 1)
+    }
+    
+    this.platformLifetimes.delete(platform)
+    
+    // Limpiar referencias de enemigos a esta plataforma
+    this.enemyPool.forEach(enemy => {
+      if (enemy.currentPlatform === platform) {
+        enemy.currentPlatform = null
+      }
+    })
+  }
+
+  private handleBreakablePlatform(platform: BreakablePlatform) {
+    if (platform.isBreaking || !this.player.body.touching.down) return
+    
+    // Solo romper si el jugador está cayendo sobre ella
+    if (this.player.body.velocity.y > 0) {
+      platform.isBreaking = true
+      
+      // Efecto visual de grietas
+      this.tweens.add({
+        targets: platform,
+        alpha: 0.5,
+        duration: 200,
+        yoyo: true,
+        repeat: 2,
+        onComplete: () => {
+          // Destruir plataforma
+          this.removePlatform(platform)
+        }
+      })
+    }
+  }
+
+  private updateMovingPlatforms(delta: number) {
+    this.movingPlatforms.forEach(platform => {
+      if (platform.active) {
+        // Mover plataforma
+        platform.x += platform.speed * platform.direction * (delta / 1000)
+        (platform.body as any).updateFromGameObject()
+        
+        // Cambiar dirección al llegar a los límites
+        if (platform.x >= platform.endX) {
+          platform.direction = -1
+        } else if (platform.x <= platform.startX) {
+          platform.direction = 1
+        }
+        
+        // Actualizar física
+        platform.body.setPosition(platform.x, platform.y)
+      }
     })
   }
 
@@ -470,6 +625,9 @@ class GameScene extends Phaser.Scene {
 
     // Animación de monedas flotantes
     this.animateCoins(time)
+
+    // Actualizar plataformas móviles
+    this.updateMovingPlatforms(delta)
   }
 
   // SISTEMA DE MONEDAS
@@ -731,7 +889,7 @@ class GameScene extends Phaser.Scene {
     const activeEnemies = this.enemyPool.filter(e => e.isActive)
     
     for (const enemy of activeEnemies) {
-      const speed = 100
+      const enemyType = this.enemyTypes.get(enemy) || EnemyType.CHASER
       const onGround = enemy.body.touching.down
 
       // Actualizar plataforma actual solo cada 200ms o cuando cambia el estado
@@ -744,33 +902,96 @@ class GameScene extends Phaser.Scene {
         }
       }
 
-      let shouldJump = false
-
-      if (onGround && enemy.currentPlatform) {
-        const platformTimeLeft = this.getPlatformTimeLeft(enemy.currentPlatform)
-        const platformDangerous = platformTimeLeft < 3000
-
-        if (platformDangerous) {
-          shouldJump = true
-        } else if (Math.abs(enemy.y - this.player.y) > 60 && Math.random() < 0.02) {
-          shouldJump = true
-        } else if (Math.abs(enemy.x - this.player.x) < 40 && enemy.y > this.player.y) {
-          shouldJump = true
-        }
+      // Comportamiento según tipo de enemigo
+      switch (enemyType) {
+        case EnemyType.PATROL:
+          this.updatePatrolEnemy(enemy, delta)
+          break
+        case EnemyType.FLYING:
+          this.updateFlyingEnemy(enemy)
+          break
+        default:
+          this.updateChaserEnemy(enemy, delta)
       }
+    }
+  }
 
-      if (shouldJump) {
-        enemy.body.setVelocityY(-250)
-      }
+  private updatePatrolEnemy(enemy: PoolableEnemy, delta: number) {
+    const patrolData = this.enemyPatrolData.get(enemy)
+    if (!patrolData) return
 
-      // Movimiento horizontal hacia el jugador
-      if (enemy.x < this.player.x - 10) {
-        enemy.body.setVelocityX(speed)
-      } else if (enemy.x > this.player.x + 10) {
-        enemy.body.setVelocityX(-speed)
-      } else {
-        enemy.body.setVelocityX(0)
+    const speed = 60
+    
+    // Mover en la dirección actual
+    enemy.x += speed * patrolData.direction * (delta / 1000)
+    
+    // Cambiar dirección al llegar a los límites
+    if (enemy.x >= patrolData.endX) {
+      patrolData.direction = -1
+    } else if (enemy.x <= patrolData.startX) {
+      patrolData.direction = 1
+    }
+    
+    // Actualizar física
+    enemy.body.setPosition(enemy.x, enemy.y)
+    
+    // Salto ocasional si el jugador está cerca
+    if (enemy.body.touching.down && 
+        Math.abs(enemy.x - this.player.x) < 80 && 
+        Math.random() < 0.01) {
+      enemy.body.setVelocityY(-250)
+    }
+  }
+
+  private updateFlyingEnemy(enemy: PoolableEnemy) {
+    const speed = 120
+    const verticalSpeed = 80
+    
+    // Movimiento hacia el jugador en ambos ejes
+    const dx = this.player.x - enemy.x
+    const dy = this.player.y - enemy.y
+    const distance = Math.sqrt(dx * dx + dy * dy)
+    
+    if (distance > 0) {
+      enemy.body.setVelocityX((dx / distance) * speed)
+      enemy.body.setVelocityY((dy / distance) * verticalSpeed)
+    }
+    
+    // Oscilación adicional para hacerlo más interesante
+    enemy.body.velocity.y += Math.sin(this.time.now / 200) * 20
+  }
+
+  private updateChaserEnemy(enemy: PoolableEnemy, delta: number) {
+    const speed = 100
+    const onGround = enemy.body.touching.down
+
+    // Lógica de salto
+    let shouldJump = false
+
+    if (onGround && enemy.currentPlatform) {
+      const platformTimeLeft = this.getPlatformTimeLeft(enemy.currentPlatform)
+      const platformDangerous = platformTimeLeft < 3000
+
+      if (platformDangerous) {
+        shouldJump = true
+      } else if (Math.abs(enemy.y - this.player.y) > 60 && Math.random() < 0.02) {
+        shouldJump = true
+      } else if (Math.abs(enemy.x - this.player.x) < 40 && enemy.y > this.player.y) {
+        shouldJump = true
       }
+    }
+
+    if (shouldJump) {
+      enemy.body.setVelocityY(-250)
+    }
+
+    // Movimiento horizontal hacia el jugador
+    if (enemy.x < this.player.x - 10) {
+      enemy.body.setVelocityX(speed)
+    } else if (enemy.x > this.player.x + 10) {
+      enemy.body.setVelocityX(-speed)
+    } else {
+      enemy.body.setVelocityX(0)
     }
   }
 
@@ -798,7 +1019,15 @@ class GameScene extends Phaser.Scene {
 
     if (validPosition) {
       const width = Phaser.Math.Between(100, 180)
-      this.createPlatform(x, y, width, 20)
+      // 30% de probabilidad de plataforma especial
+      const rand = Math.random()
+      let type = PlatformType.STATIC
+      if (rand < 0.15) {
+        type = PlatformType.MOVING
+      } else if (rand < 0.30) {
+        type = PlatformType.BREAKABLE
+      }
+      this.createPlatform(x, y, width, 20, type)
     }
   }
 }
