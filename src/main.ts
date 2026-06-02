@@ -44,6 +44,215 @@ const STORAGE_KEYS = {
 	TOTAL_COINS: 'mario_total_coins',
 }
 
+// Crear texturas para objetos del juego
+function createGameTextures(scene: Phaser.Scene) {
+	// Textura para moneda (círculo dorado con símbolo $)
+	if (!scene.textures.exists('coin')) {
+		const coinCanvas = document.createElement('canvas')
+		coinCanvas.width = 32
+		coinCanvas.height = 32
+		const coinCtx = coinCanvas.getContext('2d')
+		if (coinCtx) {
+			// Fondo dorado brillante
+			const gradient = coinCtx.createRadialGradient(16, 16, 2, 16, 16, 14)
+			gradient.addColorStop(0, '#FFD700')
+			gradient.addColorStop(0.7, '#FFA500')
+			gradient.addColorStop(1, '#B8860B')
+			coinCtx.fillStyle = gradient
+			coinCtx.beginPath()
+			coinCtx.arc(16, 16, 14, 0, Math.PI * 2)
+			coinCtx.fill()
+			
+			// Borde brillante
+			coinCtx.strokeStyle = '#FFF8DC'
+			coinCtx.lineWidth = 2
+			coinCtx.stroke()
+			
+			// Símbolo $
+			coinCtx.fillStyle = '#8B4513'
+			coinCtx.font = 'bold 18px Arial'
+			coinCtx.textAlign = 'center'
+			coinCtx.textBaseline = 'middle'
+			coinCtx.fillText('$', 16, 17)
+			
+			scene.textures.addCanvas('coin', coinCanvas)
+		}
+	}
+	
+	// Textura para power-up de invencibilidad (estrella)
+	if (!scene.textures.exists('powerup_invincible')) {
+		const canvas = document.createElement('canvas')
+		canvas.width = 32
+		canvas.height = 32
+		const ctx = canvas.getContext('2d')
+		if (ctx) {
+			// Fondo cyan
+			ctx.fillStyle = '#00FFFF'
+			ctx.fillRect(4, 4, 24, 24)
+			
+			// Borde
+			ctx.strokeStyle = '#FFFFFF'
+			ctx.lineWidth = 2
+			ctx.strokeRect(4, 4, 24, 24)
+			
+			// Estrella ⭐
+			ctx.fillStyle = '#FFFFFF'
+			ctx.font = '16px Arial'
+			ctx.textAlign = 'center'
+			ctx.textBaseline = 'middle'
+			ctx.fillText('⭐', 16, 16)
+			
+			scene.textures.addCanvas('powerup_invincible', canvas)
+		}
+	}
+	
+	// Textura para power-up de super salto (triángulo rosa)
+	if (!scene.textures.exists('powerup_jump')) {
+		const canvas = document.createElement('canvas')
+		canvas.width = 32
+		canvas.height = 32
+		const ctx = canvas.getContext('2d')
+		if (ctx) {
+			// Triángulo rosa
+			ctx.fillStyle = '#FF69B4'
+			ctx.beginPath()
+			ctx.moveTo(16, 4)
+			ctx.lineTo(28, 28)
+			ctx.lineTo(4, 28)
+			ctx.closePath()
+			ctx.fill()
+			
+			// Borde
+			ctx.strokeStyle = '#FFFFFF'
+			ctx.lineWidth = 2
+			ctx.stroke()
+			
+			// Flecha ↑
+			ctx.fillStyle = '#FFFFFF'
+			ctx.font = 'bold 14px Arial'
+			ctx.textAlign = 'center'
+			ctx.textBaseline = 'middle'
+			ctx.fillText('↑', 16, 19)
+			
+			scene.textures.addCanvas('powerup_jump', canvas)
+		}
+	}
+	
+	// Textura para power-up de velocidad (círculo naranja con rayo)
+	if (!scene.textures.exists('powerup_speed')) {
+		const canvas = document.createElement('canvas')
+		canvas.width = 32
+		canvas.height = 32
+		const ctx = canvas.getContext('2d')
+		if (ctx) {
+			// Círculo naranja
+			ctx.fillStyle = '#FFA500'
+			ctx.beginPath()
+			ctx.arc(16, 16, 12, 0, Math.PI * 2)
+			ctx.fill()
+			
+			// Rayo ⚡
+			ctx.fillStyle = '#FFFFFF'
+			ctx.font = 'bold 16px Arial'
+			ctx.textAlign = 'center'
+			ctx.textBaseline = 'middle'
+			ctx.fillText('⚡', 16, 17)
+			
+			scene.textures.addCanvas('powerup_speed', canvas)
+		}
+	}
+	
+	// Textura para enemigo (rombo púrpura con cara enojada)
+	if (!scene.textures.exists('enemy')) {
+		const canvas = document.createElement('canvas')
+		canvas.width = 32
+		canvas.height = 32
+		const ctx = canvas.getContext('2d')
+		if (ctx) {
+			// Rombo púrpura
+			ctx.fillStyle = '#800080'
+			ctx.beginPath()
+			ctx.moveTo(16, 2)
+			ctx.lineTo(30, 16)
+			ctx.lineTo(16, 30)
+			ctx.lineTo(2, 16)
+			ctx.closePath()
+			ctx.fill()
+			
+			// Cara enojada >:|
+			ctx.fillStyle = '#FFFFFF'
+			ctx.font = 'bold 10px Arial'
+			ctx.textAlign = 'center'
+			ctx.textBaseline = 'middle'
+			ctx.fillText('>:|', 16, 16)
+			
+			scene.textures.addCanvas('enemy', canvas)
+		}
+	}
+	
+	// Textura para enemigo patrulla (pentágono naranja)
+	if (!scene.textures.exists('enemy_patrol')) {
+		const canvas = document.createElement('canvas')
+		canvas.width = 32
+		canvas.height = 32
+		const ctx = canvas.getContext('2d')
+		if (ctx) {
+			// Pentágono naranja
+			ctx.fillStyle = '#FF4500'
+			ctx.beginPath()
+			for (let i = 0; i < 5; i++) {
+				const angle = (i * 2 * Math.PI) / 5 - Math.PI / 2
+				const x = 16 + 14 * Math.cos(angle)
+				const y = 16 + 14 * Math.sin(angle)
+				if (i === 0) ctx.moveTo(x, y)
+				else ctx.lineTo(x, y)
+			}
+			ctx.closePath()
+			ctx.fill()
+			
+			// Letra P
+			ctx.fillStyle = '#FFFFFF'
+			ctx.font = 'bold 12px Arial'
+			ctx.textAlign = 'center'
+			ctx.textBaseline = 'middle'
+			ctx.fillText('P', 16, 16)
+			
+			scene.textures.addCanvas('enemy_patrol', canvas)
+		}
+	}
+	
+	// Textura para enemigo volador (hexágono cyan)
+	if (!scene.textures.exists('enemy_flying')) {
+		const canvas = document.createElement('canvas')
+		canvas.width = 32
+		canvas.height = 32
+		const ctx = canvas.getContext('2d')
+		if (ctx) {
+			// Hexágono cyan
+			ctx.fillStyle = '#00CED1'
+			ctx.beginPath()
+			for (let i = 0; i < 6; i++) {
+				const angle = (i * 2 * Math.PI) / 6
+				const x = 16 + 12 * Math.cos(angle)
+				const y = 16 + 12 * Math.sin(angle)
+				if (i === 0) ctx.moveTo(x, y)
+				else ctx.lineTo(x, y)
+			}
+			ctx.closePath()
+			ctx.fill()
+			
+			// Letra F
+			ctx.fillStyle = '#FFFFFF'
+			ctx.font = 'bold 12px Arial'
+			ctx.textAlign = 'center'
+			ctx.textBaseline = 'middle'
+			ctx.fillText('F', 16, 16)
+			
+			scene.textures.addCanvas('enemy_flying', canvas)
+		}
+	}
+}
+
 // Interfaces para object pooling
 interface PoolableEnemy extends Phaser.GameObjects.Rectangle {
 	body: Phaser.Physics.Arcade.Body
@@ -159,6 +368,9 @@ class GameScene extends Phaser.Scene {
 	create() {
 		this.gameStartTime = this.time.now
 		this.lastSurvivalTime = -1
+
+		// Crear texturas del juego
+		createGameTextures(this)
 
 		// Limpiar pools y arrays al reiniciar
 		this.cleanupPools()
@@ -516,10 +728,13 @@ class GameScene extends Phaser.Scene {
 			// Configurar tipo de enemigo
 			this.enemyTypes.set(enemy, type)
 
-			// Configurar color según tipo
+			// Configurar color y textura según tipo
 			switch (type) {
 				case EnemyType.PATROL: {
 					enemy.setFillStyle(COLORS.enemyPatrol)
+					// Asignar textura de patrulla
+					const patrolImage = enemy as unknown as Phaser.GameObjects.Image
+					patrolImage.setTexture('enemy_patrol')
 					// Configurar patrulla
 					const patrolRange = 150
 					this.enemyPatrolData.set(enemy, {
@@ -531,11 +746,17 @@ class GameScene extends Phaser.Scene {
 				}
 				case EnemyType.FLYING:
 					enemy.setFillStyle(COLORS.enemyFlying)
+					// Asignar textura de volador
+					const flyingImage = enemy as unknown as Phaser.GameObjects.Image
+					flyingImage.setTexture('enemy_flying')
 					// Los enemigos voladores no tienen gravedad
 					enemy.body.setAllowGravity(false)
 					break
 				default:
 					enemy.setFillStyle(COLORS.enemy)
+					// Asignar textura de enemigo base
+					const baseImage = enemy as unknown as Phaser.GameObjects.Image
+					baseImage.setTexture('enemy')
 					enemy.body.setAllowGravity(true)
 			}
 
@@ -567,6 +788,52 @@ class GameScene extends Phaser.Scene {
 		// Limpiar datos del enemigo
 		this.enemyTypes.delete(enemy)
 		this.enemyPatrolData.delete(enemy)
+
+		// Spawnear monedas al matar enemigo
+		this.spawnEnemyDeathCoins(enemy.x, enemy.y)
+
+		// Verificar si hay pocos enemigos y spawnear más
+		this.checkAndSpawnEnemies()
+	}
+
+	private spawnEnemyDeathCoins(x: number, y: number) {
+		// Spawnear 3 monedas en forma de arco alrededor de la posición del enemigo
+		const coinPositions = [
+			{ x: x, y: y - 30 },
+			{ x: x - 25, y: y - 15 },
+			{ x: x + 25, y: y - 15 },
+		]
+
+		for (const pos of coinPositions) {
+			// Asegurar que las monedas estén dentro de la pantalla
+			const clampedX = Phaser.Math.Clamp(pos.x, 50, 750)
+			const clampedY = Phaser.Math.Clamp(pos.y, 100, 550)
+			this.spawnCoin(clampedX, clampedY)
+		}
+	}
+
+	private checkAndSpawnEnemies() {
+		const activeEnemies = this.enemyPool.filter((e) => e.isActive).length
+		// Si quedan menos de 2 enemigos, spawnear inmediatamente
+		if (activeEnemies < 2) {
+			// Spawnear hasta tener al menos 3 enemigos
+			const enemiesToSpawn = 3 - activeEnemies
+			for (let i = 0; i < enemiesToSpawn; i++) {
+				const spawnX = Math.random() < 0.5 ? 50 : 750
+				const spawnY = Phaser.Math.Between(100, 400)
+				// Elegir tipo aleatorio, favoreciendo CHASER
+				const rand = Math.random()
+				let type: EnemyType
+				if (rand < 0.5) {
+					type = EnemyType.CHASER
+				} else if (rand < 0.8) {
+					type = EnemyType.PATROL
+				} else {
+					type = EnemyType.FLYING
+				}
+				this.spawnEnemy(spawnX, spawnY, type)
+			}
+		}
 	}
 
 	createPlatform(
@@ -997,6 +1264,10 @@ class GameScene extends Phaser.Scene {
 			coin.setVisible(true)
 			coin.setAlpha(1)
 
+			// Cambiar a textura de moneda
+			const coinImage = coin as unknown as Phaser.GameObjects.Image
+			coinImage.setTexture('coin')
+
 			// Animación de aparición
 			this.tweens.add({
 				targets: coin,
@@ -1137,7 +1408,21 @@ class GameScene extends Phaser.Scene {
 			powerUp.type = type
 			powerUp.isActive = true
 			powerUp.spawnTime = this.time.now
-			powerUp.setFillStyle(this.getPowerUpColor(type))
+
+			// Asignar textura según el tipo
+			const powerUpImage = powerUp as unknown as Phaser.GameObjects.Image
+			switch (type) {
+				case PowerUpType.INVINCIBLE:
+					powerUpImage.setTexture('powerup_invincible')
+					break
+				case PowerUpType.SUPER_JUMP:
+					powerUpImage.setTexture('powerup_jump')
+					break
+				case PowerUpType.SUPER_SPEED:
+					powerUpImage.setTexture('powerup_speed')
+					break
+			}
+
 			powerUp.setActive(true)
 			powerUp.setVisible(true)
 
