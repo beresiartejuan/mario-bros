@@ -8,9 +8,7 @@
 
 **¡Una aventura arcade donde la plataforma es tu única esperanza y los enemigos son implacables!**
 
-https://github.com/user-attachments/assets/gameplay.mp4
-
-*[¡Mira el video de gameplay arriba!]*
+![Gameplay](gameplay.gif)
 
 </div>
 
