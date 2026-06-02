@@ -156,8 +156,13 @@ class GameScene extends Phaser.Scene {
     this.gameStartTime = this.time.now
     this.lastSurvivalTime = -1
 
+    // Limpiar pools y arrays al reiniciar
+    this.cleanupPools()
+
     // Fondo con gradiente
-    this.createGradientBackground()
+    if (!this.textures.exists('gradientBg')) {
+      this.createGradientBackground()
+    }
     
     // Crear sistemas de partículas
     this.createParticleSystems()
@@ -247,6 +252,36 @@ class GameScene extends Phaser.Scene {
       callbackScope: this,
       loop: true
     })
+  }
+
+  private cleanupPools() {
+    // Destruir enemigos existentes
+    this.enemyPool.forEach(enemy => {
+      if (enemy) enemy.destroy()
+    })
+    this.enemyPool = []
+    this.enemyTypes.clear()
+    this.enemyPatrolData.clear()
+
+    // Destruir monedas existentes
+    this.coinPool.forEach(coin => {
+      if (coin) coin.destroy()
+    })
+    this.coinPool = []
+
+    // Destruir power-ups existentes
+    this.powerUpPool.forEach(powerUp => {
+      if (powerUp) powerUp.destroy()
+    })
+    this.powerUpPool = []
+
+    // Limpiar plataformas
+    this.movingPlatforms = []
+    this.breakablePlatforms = []
+    
+    // Resetear power-up
+    this.activePowerUp = null
+    this.isInvincible = false
   }
 
   private createGradientBackground() {
@@ -419,12 +454,16 @@ class GameScene extends Phaser.Scene {
     const enemy = this.enemyPool.find(e => !e.isActive)
     if (enemy) {
       enemy.setPosition(x, y)
-      enemy.body.setVelocity(0, 0)
       enemy.isActive = true
       enemy.currentPlatform = null
       enemy.aiUpdateTimer = 0
       enemy.setActive(true)
       enemy.setVisible(true)
+      
+      // Verificar que el body existe antes de usarlo
+      if (enemy.body) {
+        enemy.body.setVelocity(0, 0)
+      }
       
       // Configurar tipo de enemigo
       this.enemyTypes.set(enemy, type)
