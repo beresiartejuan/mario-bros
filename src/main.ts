@@ -366,6 +366,9 @@ class GameScene extends Phaser.Scene {
 	}
 
 	create() {
+		// Reiniciar todas las variables del juego
+		this.resetGameState()
+
 		this.gameStartTime = this.time.now
 		this.lastSurvivalTime = -1
 
@@ -375,10 +378,8 @@ class GameScene extends Phaser.Scene {
 		// Limpiar pools y arrays al reiniciar
 		this.cleanupPools()
 
-		// Fondo con gradiente
-		if (!this.textures.exists('gradientBg')) {
-			this.createGradientBackground()
-		}
+		// Fondo con gradiente - siempre recrearlo al reiniciar
+		this.createGradientBackground()
 
 		// Crear sistemas de partículas
 		this.createParticleSystems()
@@ -529,8 +530,52 @@ class GameScene extends Phaser.Scene {
 		this.isInvincible = false
 	}
 
+	private resetGameState() {
+		// Reiniciar todas las variables del juego
+		this.lives = 3
+		this.score = 0
+		this.survivalTime = 0
+		this.coinsCollected = 0
+		this.platformTimer = 0
+		this.jumpsAvailable = 2
+		this.lastSurvivalTime = -1
+		this.activePowerUp = null
+		this.isInvincible = false
+
+		// Resetear power-up timer
+		if (this.powerUpTimer) {
+			this.powerUpTimer.remove()
+			this.powerUpTimer = null
+		}
+
+		// Limpiar plataformas si existen
+		if (this.platforms) {
+			this.platforms.clear(true, true)
+		}
+
+		// Limpiar enemigos si existen
+		if (this.enemies) {
+			this.enemies.clear(true, true)
+		}
+
+		// Limpiar monedas si existen
+		if (this.coins) {
+			this.coins.clear(true, true)
+		}
+
+		// Limpiar power-ups si existen
+		if (this.powerUps) {
+			this.powerUps.clear(true, true)
+		}
+	}
+
 	private createGradientBackground() {
 		// Crear un gráfico con gradiente para el fondo
+		// Eliminar textura existente si ya existe para poder recrearla
+		if (this.textures.exists('gradientBg')) {
+			this.textures.remove('gradientBg')
+		}
+		
 		// Crear textura con gradiente
 		const canvas = document.createElement('canvas')
 		canvas.width = 800
