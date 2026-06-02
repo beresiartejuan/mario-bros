@@ -254,7 +254,7 @@ function createGameTextures(scene: Phaser.Scene) {
 }
 
 // Interfaces para object pooling
-interface PoolableEnemy extends Phaser.GameObjects.Rectangle {
+interface PoolableEnemy extends Phaser.GameObjects.Image {
 	body: Phaser.Physics.Arcade.Body
 	isActive: boolean
 	currentPlatform: PoolablePlatform | null
@@ -266,13 +266,13 @@ interface PoolablePlatform extends Phaser.GameObjects.Rectangle {
 	createdAt: number
 }
 
-interface PoolableCoin extends Phaser.GameObjects.Ellipse {
+interface PoolableCoin extends Phaser.GameObjects.Image {
 	isActive: boolean
 	spawnTime: number
 	floatOffset: number
 }
 
-interface PoolablePowerUp extends Phaser.GameObjects.Rectangle {
+interface PoolablePowerUp extends Phaser.GameObjects.Image {
 	isActive: boolean
 	type: PowerUpType
 	spawnTime: number
@@ -685,16 +685,11 @@ class GameScene extends Phaser.Scene {
 
 	private initializeEnemyPool(size: number) {
 		for (let i = 0; i < size; i++) {
-			const enemy = this.add.rectangle(
-				-100,
-				-100,
-				35,
-				35,
-				COLORS.enemy
-			) as PoolableEnemy
+			const enemy = this.add.image(-100, -100, 'enemy') as PoolableEnemy
 			this.physics.add.existing(enemy)
 			enemy.body.setBounce(0.2)
 			enemy.body.setCollideWorldBounds(true)
+			enemy.setDisplaySize(35, 35)
 			enemy.isActive = false
 			enemy.currentPlatform = null
 			enemy.aiUpdateTimer = 0
@@ -731,10 +726,8 @@ class GameScene extends Phaser.Scene {
 			// Configurar color y textura según tipo
 			switch (type) {
 				case EnemyType.PATROL: {
-					enemy.setFillStyle(COLORS.enemyPatrol)
 					// Asignar textura de patrulla
-					const patrolImage = enemy as unknown as Phaser.GameObjects.Image
-					patrolImage.setTexture('enemy_patrol')
+					enemy.setTexture('enemy_patrol')
 					// Configurar patrulla
 					const patrolRange = 150
 					this.enemyPatrolData.set(enemy, {
@@ -745,18 +738,14 @@ class GameScene extends Phaser.Scene {
 					break
 				}
 				case EnemyType.FLYING:
-					enemy.setFillStyle(COLORS.enemyFlying)
 					// Asignar textura de volador
-					const flyingImage = enemy as unknown as Phaser.GameObjects.Image
-					flyingImage.setTexture('enemy_flying')
+					enemy.setTexture('enemy_flying')
 					// Los enemigos voladores no tienen gravedad
 					enemy.body.setAllowGravity(false)
 					break
 				default:
-					enemy.setFillStyle(COLORS.enemy)
 					// Asignar textura de enemigo base
-					const baseImage = enemy as unknown as Phaser.GameObjects.Image
-					baseImage.setTexture('enemy')
+					enemy.setTexture('enemy')
 					enemy.body.setAllowGravity(true)
 			}
 
@@ -1219,15 +1208,10 @@ class GameScene extends Phaser.Scene {
 	// SISTEMA DE MONEDAS
 	private initializeCoinPool(size: number) {
 		for (let i = 0; i < size; i++) {
-			const coin = this.add.ellipse(
-				0,
-				0,
-				20,
-				20,
-				COLORS.coin
-			) as PoolableCoin
+			const coin = this.add.image(0, 0, 'coin') as PoolableCoin
 			this.physics.add.existing(coin)
 			;(coin.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
+			coin.setDisplaySize(20, 20)
 			coin.isActive = false
 			coin.spawnTime = 0
 			coin.floatOffset = Math.random() * Math.PI * 2
@@ -1260,13 +1244,10 @@ class GameScene extends Phaser.Scene {
 			coin.setPosition(x, y)
 			coin.isActive = true
 			coin.spawnTime = this.time.now
+			coin.setTexture('coin')
 			coin.setActive(true)
 			coin.setVisible(true)
 			coin.setAlpha(1)
-
-			// Cambiar a textura de moneda
-			const coinImage = coin as unknown as Phaser.GameObjects.Image
-			coinImage.setTexture('coin')
 
 			// Animación de aparición
 			this.tweens.add({
@@ -1349,17 +1330,12 @@ class GameScene extends Phaser.Scene {
 
 		for (let i = 0; i < size; i++) {
 			const type = types[i % types.length]
-			const color = this.getPowerUpColor(type)
+			const textureKey = this.getPowerUpTextureKey(type)
 
-			const powerUp = this.add.rectangle(
-				0,
-				0,
-				30,
-				30,
-				color
-			) as PoolablePowerUp
+			const powerUp = this.add.image(0, 0, textureKey) as PoolablePowerUp
 			this.physics.add.existing(powerUp)
 			;(powerUp.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
+			powerUp.setDisplaySize(30, 30)
 			powerUp.isActive = false
 			powerUp.type = type
 			powerUp.spawnTime = 0
@@ -1380,6 +1356,19 @@ class GameScene extends Phaser.Scene {
 				return COLORS.powerupSpeed
 			default:
 				return COLORS.powerupInvincible
+		}
+	}
+
+	private getPowerUpTextureKey(type: PowerUpType): string {
+		switch (type) {
+			case PowerUpType.INVINCIBLE:
+				return 'powerup_invincible'
+			case PowerUpType.SUPER_JUMP:
+				return 'powerup_jump'
+			case PowerUpType.SUPER_SPEED:
+				return 'powerup_speed'
+			default:
+				return 'powerup_invincible'
 		}
 	}
 
@@ -1410,16 +1399,15 @@ class GameScene extends Phaser.Scene {
 			powerUp.spawnTime = this.time.now
 
 			// Asignar textura según el tipo
-			const powerUpImage = powerUp as unknown as Phaser.GameObjects.Image
 			switch (type) {
 				case PowerUpType.INVINCIBLE:
-					powerUpImage.setTexture('powerup_invincible')
+					powerUp.setTexture('powerup_invincible')
 					break
 				case PowerUpType.SUPER_JUMP:
-					powerUpImage.setTexture('powerup_jump')
+					powerUp.setTexture('powerup_jump')
 					break
 				case PowerUpType.SUPER_SPEED:
-					powerUpImage.setTexture('powerup_speed')
+					powerUp.setTexture('powerup_speed')
 					break
 			}
 
