@@ -1,4 +1,4 @@
-# 🍄 Mario Bros - El Regreso del Fontanero
+# 🔴 El Cubo Rojo - Aventura Arcade
 
 <div align="center">
 
@@ -16,7 +16,7 @@
 
 ## 🎮 Sobre el Juego
 
-**Mario Bros** es una reinterpretación moderna del clásico juego de plataformas, desarrollada con **Phaser 3** y **TypeScript**. En este frenético juego arcade, controlas a un intrépido personaje rojo que debe sobrevivir el mayor tiempo posible mientras recolecta monedas, esquiva (¡o elimina!) enemigos y salta entre plataformas que desaparecen misteriosamente.
+**El Cubo Rojo** es un juego de plataformas arcade desarrollado con **Phaser 3** y **TypeScript**. Controlas a un intrépido cubo rojo que debe sobrevivir el mayor tiempo posible mientras recolecta monedas doradas, esquiva (¡o elimina!) enemigos geométricos y salta entre plataformas que desaparecen misteriosamente.
 
 ### ⚡ Características Principales
 
@@ -137,42 +137,6 @@ mario-bros/
 
 ---
 
-## 📜 Licencia
-
-Este proyecto está bajo la Licencia MIT. ¡Siéntete libre de usarlo y modificarlo!
-
----
-
-<div align="center">
-
-**⭐ Si te gustó el proyecto, ¡dale una estrella! ⭐**
-
-*Desarrollado con ❤️ y mucha ☕*
-
-</div>
-
----
-
-## 📝 Roadmap
-
-- [ ] Añadir más tipos de enemigos
-- [ ] Implementar niveles con dificultad progresiva
-- [ ] Sistema de logros/achievements
-- [ ] Modo multijugador local
-- [ ] Más power-ups y efectos
-- [ ] Banda sonora y efectos de sonido
-- [ ] Mobile-friendly (controles táctiles)
-
----
-
-## 🐛 Bugs Conocidos
-
-*Ninguno actualmente* ✅
-
-Si encuentras algún bug, por favor abre un [issue](https://github.com/beresiartejuan/mario-bros/issues).
-
----
-
 <div align="center">
 
 **⭐ Si te gustó el proyecto, ¡dale una estrella! ⭐**
@@ -190,3 +154,9 @@ Si encuentras algún bug, por favor abre un [issue](https://github.com/beresiart
 *Proyecto completado y listo para disfrutar* ✨
 
 </div>
+
+---
+
+## 📜 Licencia
+
+Este proyecto está bajo la Licencia MIT. ¡Siéntete libre de usarlo y modificarlo!
