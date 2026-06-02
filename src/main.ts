@@ -1132,8 +1132,8 @@ class GameScene extends Phaser.Scene {
 
     const speed = 60
     
-    // Mover en la dirección actual
-    enemy.x += speed * patrolData.direction * (delta / 1000)
+    // Mover en la dirección actual usando velocidad
+    enemy.body.setVelocityX(speed * patrolData.direction)
     
     // Cambiar dirección al llegar a los límites
     if (enemy.x >= patrolData.endX) {
@@ -1141,9 +1141,6 @@ class GameScene extends Phaser.Scene {
     } else if (enemy.x <= patrolData.startX) {
       patrolData.direction = 1
     }
-    
-    // Actualizar física
-    enemy.body.setPosition(enemy.x, enemy.y)
     
     // Salto ocasional si el jugador está cerca
     if (enemy.body.touching.down && 
