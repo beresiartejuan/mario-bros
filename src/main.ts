@@ -35,6 +35,13 @@ const POWERUP_DURATION = 5000
 // Valor de monedas
 const COIN_VALUE = 50
 
+// Constantes para localStorage
+const STORAGE_KEYS = {
+  HIGH_SCORE: 'mario_high_score',
+  GAMES_PLAYED: 'mario_games_played',
+  TOTAL_COINS: 'mario_total_coins'
+}
+
 // Interfaces para object pooling
 interface PoolableEnemy extends Phaser.GameObjects.Rectangle {
   body: Phaser.Physics.Arcade.Body
@@ -152,6 +159,96 @@ class GameScene extends Phaser.Scene {
     // Fondo con gradiente
     this.createGradientBackground()
     
+    // Crear sistemas de partículas
+    this.createParticleSystems()
+
+    // Crear suelo permanente
+    this.platforms = this.physics.add.staticGroup()
+    const ground = this.add.rectangle(400, 580, 800, 40, COLORS.ground)
+    this.physics.add.existing(ground, true)
+    this.platforms.add(ground)
+
+    // Array para plataformas dinámicas
+    this.dynamicPlatforms = []
+    this.platformLifetimes = new Map()
+
+    // Crear plataformas iniciales
+    this.createPlatform(200, 450, 150, 20, PlatformType.STATIC)
+    this.createPlatform(500, 350, 150, 20, PlatformType.STATIC)
+    this.createPlatform(150, 250, 120, 20, PlatformType.MOVING)
+    this.createPlatform(600, 200, 130, 20, PlatformType.BREAKABLE)
+
+    // Crear jugador
+    this.player = this.add.rectangle(100, 500, 30, 40, COLORS.player) as any
+    this.physics.add.existing(this.player)
+    this.player.body.setCollideWorldBounds(true)
+    this.player.body.setBounce(0.1)
+
+    // Crear pool de enemigos
+    this.enemies = this.physics.add.group()
+    this.initializeEnemyPool(8)
+    
+    // Spawn enemigos iniciales con variedad
+    this.spawnEnemy(700, 500, EnemyType.CHASER)
+    this.spawnEnemy(400, 300, EnemyType.PATROL)
+    this.spawnEnemy(600, 100, EnemyType.FLYING)
+
+    // Crear pool de monedas
+    this.coins = this.physics.add.group()
+    this.initializeCoinPool(15)
+    this.spawnInitialCoins()
+
+    // Crear pool de power-ups
+    this.powerUps = this.physics.add.group()
+    this.initializePowerUpPool(5)
+
+    // Colisiones
+    this.physics.add.collider(this.player, this.platforms)
+    this.physics.add.collider(this.enemies, this.platforms)
+    this.physics.add.collider(this.enemies, this.enemies)
+    this.physics.add.overlap(this.player, this.enemies, this.hitEnemy, undefined, this)
+    this.physics.add.overlap(this.player, this.coins, this.collectCoin, undefined, this)
+    this.physics.add.overlap(this.player, this.powerUps, this.collectPowerUp, undefined, this)
+
+    // Controles
+    this.cursors = this.input.keyboard!.createCursorKeys()
+
+    // UI
+    this.createUI()
+
+    // Timer para incrementar score
+    this.scoreTimer = this.time.addEvent({
+      delay: 1000,
+      callback: this.incrementScore,
+      callbackScope: this,
+      loop: true
+    })
+
+    // Timer para spawn de enemigos (cada 15 segundos)
+    this.enemySpawnTimer = this.time.addEvent({
+      delay: 15000,
+      callback: this.spawnEnemyIfNeeded,
+      callbackScope: this,
+      loop: true
+    })
+
+    // Timer para spawn de monedas (cada 3 segundos)
+    this.time.addEvent({
+      delay: 3000,
+      callback: this.spawnCoinIfNeeded,
+      callbackScope: this,
+      loop: true
+    })
+
+    // Timer para spawn de power-ups (cada 20 segundos)
+    this.time.addEvent({
+      delay: 20000,
+      callback: this.spawnPowerUpIfNeeded,
+      callbackScope: this,
+      loop: true
+    })
+  }
+
   private createGradientBackground() {
     // Crear un gráfico con gradiente para el fondo
     const graphics = this.add.graphics()
@@ -680,7 +777,11 @@ class GameScene extends Phaser.Scene {
       this.powerUpTimer.remove()
     }
 
-    this.add.text(400, 250, 'GAME OVER', {
+    // Obtener high score
+    const highScore = this.getHighScore()
+    const isNewRecord = this.score > highScore
+
+    this.add.text(400, 200, 'GAME OVER', {
       fontSize: '64px',
       color: '#ff0000',
       fontStyle: 'bold',
@@ -688,7 +789,7 @@ class GameScene extends Phaser.Scene {
       strokeThickness: 8
     }).setOrigin(0.5)
 
-    this.add.text(400, 320, `Puntuación Final: ${this.score}`, {
+    this.add.text(400, 270, `Puntuación Final: ${this.score}`, {
       fontSize: '32px',
       color: COLORS.text,
       fontStyle: 'bold',
@@ -696,7 +797,32 @@ class GameScene extends Phaser.Scene {
       strokeThickness: 6
     }).setOrigin(0.5)
 
-    this.add.text(400, 370, 'Presiona ESPACIO para reiniciar', {
+    if (isNewRecord) {
+      this.add.text(400, 310, '¡NUEVO RÉCORD!', {
+        fontSize: '28px',
+        color: '#FFD700',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 4
+      }).setOrigin(0.5)
+    }
+
+    this.add.text(400, 350, `Mejor Puntuación: ${Math.max(highScore, this.score)}`, {
+      fontSize: '24px',
+      color: '#FFD700',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4
+    }).setOrigin(0.5)
+
+    this.add.text(400, 390, `Monedas: ${this.coinsCollected}`, {
+      fontSize: '20px',
+      color: '#FFD700',
+      stroke: '#000000',
+      strokeThickness: 4
+    }).setOrigin(0.5)
+
+    this.add.text(400, 430, 'Presiona ESPACIO para reiniciar', {
       fontSize: '20px',
       color: COLORS.text,
       stroke: '#000000',
@@ -706,6 +832,42 @@ class GameScene extends Phaser.Scene {
     this.input.keyboard!.once('keydown-SPACE', () => {
       this.scene.restart()
     })
+  }
+
+  // SISTEMA DE HIGH SCORES
+  private getHighScore(): number {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.HIGH_SCORE)
+      return saved ? parseInt(saved, 10) : 0
+    } catch {
+      return 0
+    }
+  }
+
+  private saveHighScore() {
+    try {
+      const currentHigh = this.getHighScore()
+      if (this.score > currentHigh) {
+        localStorage.setItem(STORAGE_KEYS.HIGH_SCORE, this.score.toString())
+      }
+      
+      // Guardar estadísticas
+      const gamesPlayed = parseInt(localStorage.getItem(STORAGE_KEYS.GAMES_PLAYED) || '0') + 1
+      localStorage.setItem(STORAGE_KEYS.GAMES_PLAYED, gamesPlayed.toString())
+      
+      const totalCoins = parseInt(localStorage.getItem(STORAGE_KEYS.TOTAL_COINS) || '0') + this.coinsCollected
+      localStorage.setItem(STORAGE_KEYS.TOTAL_COINS, totalCoins.toString())
+    } catch {
+      // Silenciar errores de localStorage
+    }
+  }
+
+  private getTotalCoins(): number {
+    try {
+      return parseInt(localStorage.getItem(STORAGE_KEYS.TOTAL_COINS) || '0')
+    } catch {
+      return 0
+    }
   }
 
   update(time: number, delta: number) {
