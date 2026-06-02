@@ -534,20 +534,6 @@ class GameScene extends Phaser.Scene {
 		// Resetear power-up
 		this.activePowerUp = null
 		this.isInvincible = false
-
-		// Limpiar grupos de Phaser si existen
-		if (this.platforms) {
-			this.platforms.clear(true, true)
-		}
-		if (this.enemies) {
-			this.enemies.clear(true, true)
-		}
-		if (this.coins) {
-			this.coins.clear(true, true)
-		}
-		if (this.powerUps) {
-			this.powerUps.clear(true, true)
-		}
 	}
 
 	private resetGameState() {
