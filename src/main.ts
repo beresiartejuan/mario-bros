@@ -16,7 +16,10 @@ const COLORS = {
   coin: 0xFFD700,     // Oro para monedas
   powerupInvincible: 0x00FFFF,  // Cyan para invencibilidad
   powerupJump: 0xFF69B4,        // Rosa para salto mejorado
-  powerupSpeed: 0xFFA500        // Naranja para velocidad
+  powerupSpeed: 0xFFA500,        // Naranja para velocidad
+  particleStar: 0xFFD700,  // Dorado para partículas de moneda
+  particleEnemy: 0x800080, // Púrpura para partículas de enemigo
+  particleJump: 0xFFFFFF   // Blanco para partículas de salto
 }
 
 // Tipos de power-ups
@@ -125,6 +128,18 @@ class GameScene extends Phaser.Scene {
   private originalPlayerSpeed: number = 200
   private originalJumpVelocity: number = 400
   private isInvincible: boolean = false
+  
+  // Sistema de partículas
+  private coinParticleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter
+  private enemyParticleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter
+  private powerUpParticleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter
+  private jumpParticleEmitter!: Phaser.GameObjects.Particles.ParticleEmitter
+  
+  // Referencias a managers de partículas
+  private coinParticles!: Phaser.GameObjects.Particles.ParticleEmitterManager
+  private enemyParticles!: Phaser.GameObjects.Particles.ParticleEmitterManager
+  private powerUpParticles!: Phaser.GameObjects.Particles.ParticleEmitterManager
+  private jumpParticles!: Phaser.GameObjects.Particles.ParticleEmitterManager
 
   constructor() {
     super({ key: 'GameScene' })
@@ -134,8 +149,110 @@ class GameScene extends Phaser.Scene {
     this.gameStartTime = this.time.now
     this.lastSurvivalTime = -1
 
-    // Fondo
-    this.add.rectangle(400, 300, 800, 600, COLORS.bg)
+    // Fondo con gradiente
+    this.createGradientBackground()
+    
+  private createGradientBackground() {
+    // Crear un gráfico con gradiente para el fondo
+    const graphics = this.add.graphics()
+    
+    // Crear textura con gradiente
+    const canvas = document.createElement('canvas')
+    canvas.width = 800
+    canvas.height = 600
+    const ctx = canvas.getContext('2d')!
+    
+    const gradient = ctx.createLinearGradient(0, 0, 0, 600)
+    gradient.addColorStop(0, '#87CEEB')
+    gradient.addColorStop(0.7, '#B0E0E6')
+    gradient.addColorStop(1, '#E0F6FF')
+    
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, 800, 600)
+    
+    this.textures.addCanvas('gradientBg', canvas)
+    this.add.image(400, 300, 'gradientBg')
+  }
+
+  private createParticleSystems() {
+    // Crear textura para partículas
+    const canvas = document.createElement('canvas')
+    canvas.width = 16
+    canvas.height = 16
+    const ctx = canvas.getContext('2d')!
+    
+    // Partícula circular
+    ctx.beginPath()
+    ctx.arc(8, 8, 6, 0, Math.PI * 2)
+    ctx.fillStyle = '#ffffff'
+    ctx.fill()
+    this.textures.addCanvas('particle', canvas)
+
+    // Sistema de partículas para monedas
+    this.coinParticles = this.add.particles(0, 0, 'particle', {
+      speed: { min: 50, max: 150 },
+      scale: { start: 1, end: 0 },
+      lifespan: 600,
+      gravityY: 300,
+      quantity: 8,
+      emitting: false,
+      tint: COLORS.coin
+    })
+
+    // Sistema de partículas para enemigos
+    this.enemyParticles = this.add.particles(0, 0, 'particle', {
+      speed: { min: 30, max: 100 },
+      scale: { start: 0.8, end: 0 },
+      lifespan: 500,
+      gravityY: 200,
+      quantity: 10,
+      emitting: false,
+      tint: COLORS.enemy
+    })
+
+    // Sistema de partículas para power-ups
+    this.powerUpParticles = this.add.particles(0, 0, 'particle', {
+      speed: { min: 20, max: 60 },
+      scale: { start: 0.5, end: 0 },
+      lifespan: 800,
+      gravityY: 0,
+      quantity: 15,
+      emitting: false
+    })
+
+    // Sistema de partículas para saltos
+    this.jumpParticles = this.add.particles(0, 0, 'particle', {
+      speed: { min: 20, max: 50 },
+      scale: { start: 0.6, end: 0 },
+      lifespan: 400,
+      gravityY: 100,
+      quantity: 6,
+      emitting: false,
+      tint: COLORS.particleJump,
+      angle: { min: 80, max: 100 }
+    })
+  }
+
+  private emitCoinParticles(x: number, y: number) {
+    this.coinParticles.emitParticleAt(x, y)
+  }
+
+  private emitEnemyParticles(x: number, y: number) {
+    this.enemyParticles.emitParticleAt(x, y)
+  }
+
+  private emitPowerUpParticles(x: number, y: number, color: number) {
+    this.powerUpParticles.setParticleTint(color)
+    this.powerUpParticles.emitParticleAt(x, y)
+  }
+
+  private emitJumpParticles(x: number, y: number) {
+    this.jumpParticles.emitParticleAt(x, y)
+  }
+
+  private shakeCamera(intensity: number = 0.01, duration: number = 200) {
+    this.cameras.main.shake(duration, intensity)
+  }
 
     // Crear suelo permanente
     this.platforms = this.physics.add.staticGroup()
@@ -507,6 +624,7 @@ class GameScene extends Phaser.Scene {
   hitEnemy(player: any, enemy: PoolableEnemy) {
     // Si es invencible, matar al enemigo automáticamente
     if (this.isInvincible) {
+      this.emitEnemyParticles(enemy.x, enemy.y)
       this.despawnEnemy(enemy)
       this.score += 100
       this.scoreText.setText(`Puntos: ${this.score}`)
@@ -516,11 +634,18 @@ class GameScene extends Phaser.Scene {
     const playerBottom = player.y + (player.height / 2)
 
     if (player.body.velocity.y > 0 && playerBottom < enemy.y + 5) {
+      // Efectos visuales al matar enemigo
+      this.emitEnemyParticles(enemy.x, enemy.y)
+      this.shakeCamera(0.005, 100)
+      
       this.despawnEnemy(enemy)
       player.body.setVelocityY(-300)
       this.score += 100
       this.scoreText.setText(`Puntos: ${this.score}`)
     } else {
+      // Efecto visual al recibir daño
+      this.shakeCamera(0.02, 300)
+      
       this.lives--
       this.livesText.setText(`Vidas: ${this.lives}`)
 
@@ -536,6 +661,7 @@ class GameScene extends Phaser.Scene {
       })
 
       if (this.lives <= 0) {
+        this.saveHighScore()
         this.gameOver()
       }
     }
@@ -611,6 +737,9 @@ class GameScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.cursors.up) && this.jumpsAvailable > 0) {
       this.player.body.setVelocityY(jumpVelocity)
       this.jumpsAvailable--
+      
+      // Efecto de partículas al saltar
+      this.emitJumpParticles(this.player.x, this.player.y + 20)
     }
 
     // IA de enemigos optimizada
@@ -709,6 +838,9 @@ class GameScene extends Phaser.Scene {
 
   private collectCoin(player: any, coin: PoolableCoin) {
     if (!coin.isActive) return
+    
+    // Efecto de partículas
+    this.emitCoinParticles(coin.x, coin.y)
     
     // Desactivar moneda
     coin.isActive = false
@@ -810,6 +942,9 @@ class GameScene extends Phaser.Scene {
 
   private collectPowerUp(player: any, powerUp: PoolablePowerUp) {
     if (!powerUp.isActive || this.activePowerUp) return
+    
+    // Efecto de partículas
+    this.emitPowerUpParticles(powerUp.x, powerUp.y, this.getPowerUpColor(powerUp.type))
     
     // Desactivar power-up
     powerUp.isActive = false
