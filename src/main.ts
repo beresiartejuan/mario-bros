@@ -3,13 +3,30 @@ import Phaser from 'phaser'
 
 // Colores del juego
 const COLORS = {
-  bg: 0x87CEEB,      // Azul cielo
+  bg: 0x87CEEB,       // Azul cielo
   player: 0xFF0000,   // Rojo para el jugador
   platform: 0x8B4513, // Marrón para plataformas
   enemy: 0x800080,    // Púrpura para enemigos
   ground: 0x228B22,   // Verde para el suelo
-  text: '#ffffff'
+  text: '#ffffff',
+  coin: 0xFFD700,     // Oro para monedas
+  powerupInvincible: 0x00FFFF,  // Cyan para invencibilidad
+  powerupJump: 0xFF69B4,        // Rosa para salto mejorado
+  powerupSpeed: 0xFFA500        // Naranja para velocidad
 }
+
+// Tipos de power-ups
+enum PowerUpType {
+  INVINCIBLE = 'invincible',
+  SUPER_JUMP = 'superJump',
+  SUPER_SPEED = 'superSpeed'
+}
+
+// Duración de power-ups en ms
+const POWERUP_DURATION = 5000
+
+// Valor de monedas
+const COIN_VALUE = 50
 
 // Interfaces para object pooling
 interface PoolableEnemy extends Phaser.GameObjects.Rectangle {
@@ -22,6 +39,18 @@ interface PoolableEnemy extends Phaser.GameObjects.Rectangle {
 interface PoolablePlatform extends Phaser.GameObjects.Rectangle {
   lifetime: number
   createdAt: number
+}
+
+interface PoolableCoin extends Phaser.GameObjects.Ellipse {
+  isActive: boolean
+  spawnTime: number
+  floatOffset: number
+}
+
+interface PoolablePowerUp extends Phaser.GameObjects.Rectangle {
+  isActive: boolean
+  type: PowerUpType
+  spawnTime: number
 }
 
 class GameScene extends Phaser.Scene {
@@ -44,6 +73,22 @@ class GameScene extends Phaser.Scene {
   private enemySpawnTimer!: Phaser.Time.TimerEvent
   private scoreTimer!: Phaser.Time.TimerEvent
   private lastSurvivalTime: number = -1
+  
+  // Sistema de monedas
+  private coins!: Phaser.Physics.Arcade.Group
+  private coinPool: PoolableCoin[] = []
+  private coinsText!: Phaser.GameObjects.Text
+  private coinsCollected: number = 0
+  
+  // Sistema de power-ups
+  private powerUps!: Phaser.Physics.Arcade.Group
+  private powerUpPool: PoolablePowerUp[] = []
+  private activePowerUp: PowerUpType | null = null
+  private powerUpTimer: Phaser.Time.TimerEvent | null = null
+  private powerUpIndicator!: Phaser.GameObjects.Text
+  private originalPlayerSpeed: number = 200
+  private originalJumpVelocity: number = 400
+  private isInvincible: boolean = false
 
   constructor() {
     super({ key: 'GameScene' })
@@ -86,11 +131,22 @@ class GameScene extends Phaser.Scene {
     this.spawnEnemy(700, 500)
     this.spawnEnemy(400, 300)
 
+    // Crear pool de monedas
+    this.coins = this.physics.add.group()
+    this.initializeCoinPool(15)
+    this.spawnInitialCoins()
+
+    // Crear pool de power-ups
+    this.powerUps = this.physics.add.group()
+    this.initializePowerUpPool(5)
+
     // Colisiones
     this.physics.add.collider(this.player, this.platforms)
     this.physics.add.collider(this.enemies, this.platforms)
     this.physics.add.collider(this.enemies, this.enemies)
     this.physics.add.overlap(this.player, this.enemies, this.hitEnemy, undefined, this)
+    this.physics.add.overlap(this.player, this.coins, this.collectCoin, undefined, this)
+    this.physics.add.overlap(this.player, this.powerUps, this.collectPowerUp, undefined, this)
 
     // Controles
     this.cursors = this.input.keyboard!.createCursorKeys()
@@ -113,6 +169,22 @@ class GameScene extends Phaser.Scene {
       callbackScope: this,
       loop: true
     })
+
+    // Timer para spawn de monedas (cada 3 segundos)
+    this.time.addEvent({
+      delay: 3000,
+      callback: this.spawnCoinIfNeeded,
+      callbackScope: this,
+      loop: true
+    })
+
+    // Timer para spawn de power-ups (cada 20 segundos)
+    this.time.addEvent({
+      delay: 20000,
+      callback: this.spawnPowerUpIfNeeded,
+      callbackScope: this,
+      loop: true
+    })
   }
 
   private createUI() {
@@ -132,13 +204,29 @@ class GameScene extends Phaser.Scene {
       strokeThickness: 4
     })
 
-    this.timeText = this.add.text(16, 76, `Tiempo: 0s`, {
+    this.timeText = this.add.text(16, 76, `Tiempo: ${this.survivalTime}s`, {
       fontSize: '20px',
       color: COLORS.text,
       fontStyle: 'bold',
       stroke: '#000000',
       strokeThickness: 4
     })
+
+    this.coinsText = this.add.text(16, 106, `Monedas: ${this.coinsCollected}`, {
+      fontSize: '20px',
+      color: '#FFD700',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4
+    })
+
+    this.powerUpIndicator = this.add.text(400, 120, '', {
+      fontSize: '24px',
+      color: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4
+    }).setOrigin(0.5).setVisible(false)
   }
 
   private incrementScore() {
@@ -262,6 +350,14 @@ class GameScene extends Phaser.Scene {
   }
 
   hitEnemy(player: any, enemy: PoolableEnemy) {
+    // Si es invencible, matar al enemigo automáticamente
+    if (this.isInvincible) {
+      this.despawnEnemy(enemy)
+      this.score += 100
+      this.scoreText.setText(`Puntos: ${this.score}`)
+      return
+    }
+
     const playerBottom = player.y + (player.height / 2)
 
     if (player.body.velocity.y > 0 && playerBottom < enemy.y + 5) {
@@ -298,6 +394,9 @@ class GameScene extends Phaser.Scene {
     }
     if (this.enemySpawnTimer) {
       this.enemySpawnTimer.remove()
+    }
+    if (this.powerUpTimer) {
+      this.powerUpTimer.remove()
     }
 
     this.add.text(400, 250, 'GAME OVER', {
@@ -338,10 +437,11 @@ class GameScene extends Phaser.Scene {
     }
 
     // Movimiento del jugador
+    const speed = this.activePowerUp === PowerUpType.SUPER_SPEED ? 400 : 200
     if (this.cursors.left.isDown) {
-      this.player.body.setVelocityX(-200)
+      this.player.body.setVelocityX(-speed)
     } else if (this.cursors.right.isDown) {
-      this.player.body.setVelocityX(200)
+      this.player.body.setVelocityX(speed)
     } else {
       this.player.body.setVelocityX(0)
     }
@@ -352,8 +452,9 @@ class GameScene extends Phaser.Scene {
     }
 
     // Salto del jugador con doble salto
+    const jumpVelocity = this.activePowerUp === PowerUpType.SUPER_JUMP ? -600 : -400
     if (Phaser.Input.Keyboard.JustDown(this.cursors.up) && this.jumpsAvailable > 0) {
-      this.player.body.setVelocityY(-400)
+      this.player.body.setVelocityY(jumpVelocity)
       this.jumpsAvailable--
     }
 
@@ -366,6 +467,264 @@ class GameScene extends Phaser.Scene {
       this.platformTimer = 0
       this.spawnNewPlatform()
     }
+
+    // Animación de monedas flotantes
+    this.animateCoins(time)
+  }
+
+  // SISTEMA DE MONEDAS
+  private initializeCoinPool(size: number) {
+    for (let i = 0; i < size; i++) {
+      const coin = this.add.ellipse(0, 0, 20, 20, COLORS.coin) as PoolableCoin
+      this.physics.add.existing(coin)
+      ;(coin.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
+      coin.isActive = false
+      coin.spawnTime = 0
+      coin.floatOffset = Math.random() * Math.PI * 2
+      coin.setActive(false)
+      coin.setVisible(false)
+      this.coinPool.push(coin)
+      this.coins.add(coin)
+    }
+  }
+
+  private spawnInitialCoins() {
+    // Spawn algunas monedas iniciales en plataformas
+    const positions = [
+      { x: 200, y: 420 },
+      { x: 500, y: 320 },
+      { x: 150, y: 220 },
+      { x: 600, y: 170 },
+      { x: 350, y: 500 },
+      { x: 650, y: 400 }
+    ]
+
+    positions.forEach(pos => this.spawnCoin(pos.x, pos.y))
+  }
+
+  private spawnCoin(x: number, y: number): PoolableCoin | null {
+    const coin = this.coinPool.find(c => !c.isActive)
+    if (coin) {
+      coin.setPosition(x, y)
+      coin.isActive = true
+      coin.spawnTime = this.time.now
+      coin.setActive(true)
+      coin.setVisible(true)
+      coin.setAlpha(1)
+      
+      // Animación de aparición
+      this.tweens.add({
+        targets: coin,
+        scaleX: [0, 1],
+        scaleY: [0, 1],
+        duration: 300,
+        ease: 'Back.out'
+      })
+      
+      return coin
+    }
+    return null
+  }
+
+  private spawnCoinIfNeeded() {
+    const activeCoins = this.coinPool.filter(c => c.isActive).length
+    if (activeCoins < 8) {
+      // Spawn en posición aleatoria
+      const x = Phaser.Math.Between(100, 700)
+      const y = Phaser.Math.Between(150, 500)
+      this.spawnCoin(x, y)
+    }
+  }
+
+  private animateCoins(time: number) {
+    this.coinPool.forEach(coin => {
+      if (coin.isActive) {
+        // Efecto de flotación
+        const floatY = Math.sin((time / 500) + coin.floatOffset) * 5
+        coin.y += (floatY - (Math.sin(((time - 16) / 500) + coin.floatOffset) * 5))
+        
+        // Rotación
+        coin.rotation += 0.02
+      }
+    })
+  }
+
+  private collectCoin(player: any, coin: PoolableCoin) {
+    if (!coin.isActive) return
+    
+    // Desactivar moneda
+    coin.isActive = false
+    coin.setActive(false)
+    coin.setVisible(false)
+    
+    // Actualizar score
+    this.coinsCollected++
+    this.score += COIN_VALUE
+    this.coinsText.setText(`Monedas: ${this.coinsCollected}`)
+    this.scoreText.setText(`Puntos: ${this.score}`)
+    
+    // Efecto visual de recolección
+    this.tweens.add({
+      targets: coin,
+      scaleX: 1.5,
+      scaleY: 1.5,
+      alpha: 0,
+      duration: 200,
+      onComplete: () => {
+        coin.setScale(1, 1)
+      }
+    })
+  }
+
+  // SISTEMA DE POWER-UPS
+  private initializePowerUpPool(size: number) {
+    const types = [PowerUpType.INVINCIBLE, PowerUpType.SUPER_JUMP, PowerUpType.SUPER_SPEED]
+    
+    for (let i = 0; i < size; i++) {
+      const type = types[i % types.length]
+      const color = this.getPowerUpColor(type)
+      
+      const powerUp = this.add.rectangle(0, 0, 30, 30, color) as PoolablePowerUp
+      this.physics.add.existing(powerUp)
+      ;(powerUp.body as Phaser.Physics.Arcade.Body).setAllowGravity(false)
+      powerUp.isActive = false
+      powerUp.type = type
+      powerUp.spawnTime = 0
+      powerUp.setActive(false)
+      powerUp.setVisible(false)
+      this.powerUpPool.push(powerUp)
+      this.powerUps.add(powerUp)
+    }
+  }
+
+  private getPowerUpColor(type: PowerUpType): number {
+    switch (type) {
+      case PowerUpType.INVINCIBLE:
+        return COLORS.powerupInvincible
+      case PowerUpType.SUPER_JUMP:
+        return COLORS.powerupJump
+      case PowerUpType.SUPER_SPEED:
+        return COLORS.powerupSpeed
+      default:
+        return COLORS.powerupInvincible
+    }
+  }
+
+  private spawnPowerUpIfNeeded() {
+    const activePowerUps = this.powerUpPool.filter(p => p.isActive).length
+    if (activePowerUps === 0 && !this.activePowerUp) {
+      // Spawn power-up aleatorio
+      const x = Phaser.Math.Between(150, 650)
+      const y = Phaser.Math.Between(200, 450)
+      this.spawnPowerUp(x, y)
+    }
+  }
+
+  private spawnPowerUp(x: number, y: number): PoolablePowerUp | null {
+    // Seleccionar tipo aleatorio
+    const types = [PowerUpType.INVINCIBLE, PowerUpType.SUPER_JUMP, PowerUpType.SUPER_SPEED]
+    const type = types[Math.floor(Math.random() * types.length)]
+    
+    const powerUp = this.powerUpPool.find(p => !p.isActive)
+    if (powerUp) {
+      powerUp.setPosition(x, y)
+      powerUp.type = type
+      powerUp.isActive = true
+      powerUp.spawnTime = this.time.now
+      powerUp.setFillStyle(this.getPowerUpColor(type))
+      powerUp.setActive(true)
+      powerUp.setVisible(true)
+      
+      // Animación de flotación
+      this.tweens.add({
+        targets: powerUp,
+        y: y - 10,
+        duration: 1000,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      })
+      
+      return powerUp
+    }
+    return null
+  }
+
+  private collectPowerUp(player: any, powerUp: PoolablePowerUp) {
+    if (!powerUp.isActive || this.activePowerUp) return
+    
+    // Desactivar power-up
+    powerUp.isActive = false
+    powerUp.setActive(false)
+    powerUp.setVisible(false)
+    this.tweens.killTweensOf(powerUp)
+    
+    // Activar efecto
+    this.activatePowerUp(powerUp.type)
+  }
+
+  private activatePowerUp(type: PowerUpType) {
+    this.activePowerUp = type
+    
+    switch (type) {
+      case PowerUpType.INVINCIBLE:
+        this.activateInvincibility()
+        break
+      case PowerUpType.SUPER_JUMP:
+        this.activateSuperJump()
+        break
+      case PowerUpType.SUPER_SPEED:
+        this.activateSuperSpeed()
+        break
+    }
+    
+    // Timer para desactivar
+    if (this.powerUpTimer) {
+      this.powerUpTimer.remove()
+    }
+    
+    this.powerUpTimer = this.time.delayedCall(POWERUP_DURATION, () => {
+      this.deactivatePowerUp()
+    })
+  }
+
+  private activateInvincibility() {
+    this.isInvincible = true
+    this.powerUpIndicator.setText('⭐ INVENCIBLE ⭐')
+    this.powerUpIndicator.setVisible(true)
+    
+    // Efecto visual
+    this.tweens.add({
+      targets: this.player,
+      alpha: 0.5,
+      duration: 200,
+      yoyo: true,
+      repeat: -1
+    })
+  }
+
+  private activateSuperJump() {
+    this.originalJumpVelocity = 400
+    this.player.body.setGravityY(-400) // Salto más alto
+    this.powerUpIndicator.setText('🚀 SUPER SALTO 🚀')
+    this.powerUpIndicator.setVisible(true)
+  }
+
+  private activateSuperSpeed() {
+    this.originalPlayerSpeed = 200
+    this.powerUpIndicator.setText('⚡ VELOCIDAD ⚡')
+    this.powerUpIndicator.setVisible(true)
+  }
+
+  private deactivatePowerUp() {
+    this.activePowerUp = null
+    this.powerUpIndicator.setVisible(false)
+    
+    // Restaurar valores originales
+    this.isInvincible = false
+    this.player.clearAlpha()
+    this.player.setAlpha(1)
+    this.player.body.setGravityY(0)
   }
 
   private updateEnemiesAI(delta: number) {
