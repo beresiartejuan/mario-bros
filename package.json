@@ -9,12 +9,12 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.16",
+    "@biomejs/biome": "2.5.11",
     "typescript": "~5.9.3",
-    "vite": "^7.2.4"
+    "vite": "^7.3.6"
   },
   "dependencies": {
-    "lodash": "^4.17.23",
+    "lodash": "^4.18.1",
     "pathfinding": "^0.4.18",
     "phaser": "^3.90.0",
     "stats.js": "^0.17.0"
