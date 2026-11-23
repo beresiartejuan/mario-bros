@@ -20,12 +20,16 @@
 
 ### ⚡ Características Principales
 
-- 🏃 **Movimiento Fluido**: Controles precisos con doble salto
-- 🪙 **Sistema de Monedas**: Recolecta monedas doradas para aumentar tu puntuación
+- 🏃 **Movimiento Fluido**: Aceleración suave, doble salto, salto variable, *coyote time* y *buffer* de salto
+- 🪙 **Sistema de Monedas**: Recolecta monedas doradas; cada 25 monedas ganas una vida extra
 - ⚔️ **Tres Tipos de Enemigos**: Cada uno con IA única y comportamiento diferente
-- 🎁 **Power-ups**: Invencibilidad, Super Salto y Super Velocidad
-- 🎨 **Visuales Distintivos**: Cada objeto tiene su propio diseño único
-- 📊 **High Scores**: Guarda tus mejores puntuaciones en localStorage
+- 💥 **Combos**: Encadena pisotones sin tocar el suelo para multiplicar los puntos (x2, x4, x8)
+- 🎁 **Power-ups**: Invencibilidad, Super Salto y Super Velocidad, con barra de duración
+- 📈 **Dificultad Progresiva**: Cada 30 segundos sube el nivel: más enemigos, más rápidos y plataformas más efímeras
+- 🧱 **Plataformas Vivas**: Parpadean antes de desaparecer, las móviles te llevan encima y las grises se rompen al pisarlas
+- 🔊 **Sonido Sintetizado**: Efectos generados con Web Audio, sin archivos externos
+- ⏸️ **Pausa**: Manual o automática al cambiar de ventana
+- 📊 **Estadísticas**: Récord, mejor tiempo, partidas jugadas y monedas totales en localStorage
 - 🔄 **Generación Infinita**: Plataformas y enemigos que nunca dejan de aparecer
 
 ---
@@ -36,15 +40,18 @@
 
 | Tecla | Acción |
 |-------|--------|
-| `←` `→` | Moverse izquierda/derecha |
-| `↑` | Saltar (¡doble salto disponible!) |
+| `←` `→` / `A` `D` | Moverse izquierda/derecha |
+| `↑` / `W` / `Espacio` | Saltar (¡doble salto disponible! Mantén para saltar más alto) |
+| `P` / `Esc` | Pausa |
+| `M` | Activar/desactivar sonido |
+| `Espacio` / `Enter` | Empezar o reintentar |
 
 ### 🎯 Objetivo
 
 - **Sobrevive** el mayor tiempo posible
-- **Recolecta monedas** ($) para puntos extra
-- **Elimina enemigos** saltando sobre ellos
-- **Evita caer** al vacío
+- **Recolecta monedas** ($) para puntos extra y vidas
+- **Elimina enemigos** saltando sobre ellos (mantén el salto para rebotar más alto)
+- **No te quedes** en una plataforma que parpadea: ¡está a punto de desaparecer!
 - **Aprovecha los power-ups** para ventajas temporales
 
 ### 👾 Enemigos
@@ -103,23 +110,31 @@ Los archivos optimizados se generarán en la carpeta `dist/`.
 ```
 mario-bros/
 ├── src/
-│   ├── main.ts          # Lógica principal del juego
-│   ├── style.css        # Estilos
-│   └── counter.ts       # Utilidades
-├── dist/                # Archivos construidos
+│   ├── main.ts              # Configuración de Phaser y arranque
+│   ├── constants.ts         # Dimensiones, colores y estilos de texto
+│   ├── graphics.ts          # Texturas generadas, escenario y dibujo del cubo
+│   ├── sfx.ts               # Efectos de sonido sintetizados (Web Audio)
+│   ├── storage.ts           # Récords y preferencias en localStorage
+│   ├── style.css            # Estilos de la página
+│   └── scenes/
+│       ├── MenuScene.ts     # Pantalla de título
+│       ├── GameScene.ts     # Lógica del juego
+│       └── PauseScene.ts    # Capa de pausa
+├── public/                  # Archivos estáticos (favicon)
 ├── index.html
 ├── package.json
-├── tsconfig.json
-└── vite.config.ts
+└── tsconfig.json
 ```
 
 ### Sistemas Implementados
 
-- **Object Pooling**: Reutilización eficiente de objetos para mejor rendimiento
-- **Sistema de Partículas**: Efectos visuales al recolectar monedas y eliminar enemigos
-- **IA de Enemigos**: Tres comportamientos distintos con pathfinding
-- **Sistema de Eventos**: Timers para spawn de objetos y power-ups
+- **Object Pooling**: Reutilización de enemigos, monedas y power-ups (activando/desactivando también su cuerpo físico)
+- **Sistema de Partículas**: Efectos al saltar, aterrizar, recolectar, eliminar enemigos y romper plataformas
+- **IA de Enemigos**: Tres comportamientos distintos que escalan con el nivel
+- **Sistema de Eventos**: Timers para spawn de objetos y power-ups (se congelan durante la pausa)
 - **Persistencia**: localStorage para high scores y estadísticas
+
+> 💡 Añade `?debug` a la URL (por ejemplo `http://localhost:5173/?debug`) para ver las cajas de colisión.
 
 ---
 
